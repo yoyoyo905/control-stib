@@ -140,8 +140,8 @@
 <main>
   <div class="stats">
     <div class="stat"><div class="snum r" id="s-active">–</div><div class="slabel">Contrôles actifs</div></div>
-    <div class="stat"><div class="snum" id="s-today">–</div><div class="slabel">Aujourd'hui</div></div>
-
+    <div class="stat"><div class="snum" id="s-today">–</div><div class="slabel">Signalements</div></div>
+    <div class="stat"><div class="snum" id="s-visits">–</div><div class="slabel">Visites aujourd'hui</div></div>
   </div>
 
   <div class="infobar">⏱️ Les signalements expirent automatiquement après <strong>2 heures</strong></div>
@@ -314,9 +314,19 @@ if(localStorage.getItem('t')==='d'){
 
 async function init(){
   updateLineSelect();
+  await trackVisit();
   await loadAlerts();
   setInterval(loadAlerts,30000);
   db.channel('ac').on('postgres_changes',{event:'*',schema:'public',table:'alerts'},()=>loadAlerts()).subscribe();
+}
+
+async function trackVisit(){
+  try{
+    await db.from('visits').insert([{}]);
+    const sod=new Date();sod.setHours(0,0,0,0);
+    const{count}=await db.from('visits').select('*',{count:'exact',head:true}).gte('created_at',sod.toISOString());
+    document.getElementById('s-visits').textContent=count||0;
+  }catch(e){}
 }
 
 function updateLineSelect(){
