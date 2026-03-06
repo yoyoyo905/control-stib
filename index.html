@@ -149,6 +149,7 @@
     <div class="stat"><div class="snum r" id="s-active">–</div><div class="slabel">Contrôles actifs</div></div>
     <div class="stat"><div class="snum" id="s-today">–</div><div class="slabel">Signalements</div></div>
     <div class="stat"><div class="snum" id="s-visits">–</div><div class="slabel">Visites aujourd'hui</div></div>
+    <div class="stat"><div class="snum" id="s-total-visits">–</div><div class="slabel">Visites total</div></div>
   </div>
 
   <div class="infobar">⏱️ Les signalements expirent automatiquement après <strong>2 heures</strong></div>
@@ -350,8 +351,10 @@ async function trackVisit(){
   try{
     await db.from('visits').insert([{}]);
     const sod=new Date();sod.setHours(0,0,0,0);
-    const{count}=await db.from('visits').select('*',{count:'exact',head:true}).gte('created_at',sod.toISOString());
-    document.getElementById('s-visits').textContent=count||0;
+    const{count:today}=await db.from('visits').select('*',{count:'exact',head:true}).gte('created_at',sod.toISOString());
+    const{count:total}=await db.from('visits').select('*',{count:'exact',head:true});
+    document.getElementById('s-visits').textContent=today||0;
+    document.getElementById('s-total-visits').textContent=total||0;
   }catch(e){}
 }
 
@@ -414,9 +417,8 @@ async function loadAlerts(){
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function ago(ts){
   const d=new Date(ts);
-  const h=d.getHours().toString().padStart(2,'0');
-  const m=d.getMinutes().toString().padStart(2,'0');
-  return`Signalé à ${h}:${m}`;
+  const h=d.toLocaleString('fr-BE',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'});
+  return`Signalé à ${h}`;
 }
 
 function renderAlerts(){
