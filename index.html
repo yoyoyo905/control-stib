@@ -258,6 +258,8 @@
 
     <button class="subbtn" onclick="submit()">✅ Confirmer le signalement</button>
     <button class="cancelbtn" onclick="closeModal()">Annuler</button>
+    <!-- honeypot -->
+    <input type="text" id="hp-field" style="display:none;position:absolute;left:-9999px" tabindex="-1" autocomplete="off">
   </div>
 </div>
 
@@ -572,6 +574,14 @@ function updateReportBtn(){
 }
 
 async function submit(){
+  // Honeypot check
+  if(document.getElementById('hp-field').value !== ''){
+    closeModal(); return;
+  }
+  // Time check - must spend at least 3 seconds in form
+  if(!window._modalOpenTime || Date.now() - window._modalOpenTime < 3000){
+    showToast('Trop rapide ! Réessaie.','err'); return;
+  }
   const line=document.getElementById('sel-line').value;
   const station=document.getElementById('sel-station').value;
   const dir=document.getElementById('sel-dir').value;
@@ -580,8 +590,16 @@ async function submit(){
   const btn=document.querySelector('.subbtn');
   btn.disabled=true;btn.textContent='⏳ Envoi...';
   try{
-    const{error}=await db.from('alerts').insert([{type:curType,line,station,direction:dir||null,inspectors:curInsp,votes:0,confirmations:0}]);
-    if(error)throw error;
+    const res = await fetch('https://ltswohnqnhejerkkwdkr.supabase.co/functions/v1/insert-alert', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SKEY}`
+      },
+      body: JSON.stringify({type:curType,line,station,direction:dir||null,inspectors:curInsp,votes:0,confirmations:0})
+    });
+    const result = await res.json();
+    if(!res.ok) throw new Error(result.error || 'Erreur');
     localStorage.setItem('last_report', Date.now().toString());
     closeModal();showToast('✅ Signalement envoyé ! Merci !','ok');
     await loadAlerts();
@@ -592,6 +610,8 @@ async function submit(){
 
 function openModal(){
   if(getCooldownRemaining() > 0) return;
+  window._modalOpenTime = Date.now();
+  document.getElementById('hp-field').value = '';
   document.getElementById('modal').classList.add('open');document.body.style.overflow='hidden';
 }
 function closeModal(){
