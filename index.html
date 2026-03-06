@@ -79,13 +79,6 @@
     .sbtn:hover{opacity:.85;transform:translateY(-1px)}
     .swapp{background:#25d366;color:#fff}
     .stele{background:#0088cc;color:#fff}
-    .install-banner{background:linear-gradient(135deg,#003082,#0044b8);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;position:relative}
-    .install-banner h3{font-size:14px;font-weight:800;margin-bottom:6px}
-    .install-banner p{font-size:12px;opacity:.9;line-height:1.5;margin-bottom:10px}
-    .install-steps{display:flex;gap:8px;margin-bottom:10px}
-    .install-step{flex:1;background:rgba(255,255,255,.15);border-radius:10px;padding:8px;font-size:11px;text-align:center;line-height:1.4}
-    .install-step span{display:block;font-size:18px;margin-bottom:3px}
-    .install-close{position:absolute;top:10px;right:12px;background:rgba(255,255,255,.2);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
     /* MODAL */
     .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
     .overlay.open{display:flex}
@@ -194,16 +187,6 @@
       </div>
       <div class="install-divider"></div>
       <p style="font-size:12px;color:var(--muted);text-align:center;">Fonctionne comme une vraie app — sans passer par l'App Store ni le Google Play Store !</p>
-    </div>
-  </div>
-
-  <div class="install-banner" id="install-banner" style="display:none">
-    <button class="install-close" onclick="closeInstall()">✕</button>
-    <h3>📱 Installer l'app sur votre téléphone</h3>
-    <p>Ajoutez Contrôle Alert sur votre écran d'accueil pour un accès rapide — sans passer par l'App Store !</p>
-    <div class="install-steps">
-      <div class="install-step"><span>🍎</span><strong>iPhone</strong><br>Safari → ⬆️ Partager → "Sur l'écran d'accueil"</div>
-      <div class="install-step"><span>🤖</span><strong>Android</strong><br>Chrome → ⋮ → "Ajouter à l'écran d'accueil"</div>
     </div>
   </div>
 
@@ -383,15 +366,6 @@ function toggleDark(){
 if(localStorage.getItem('t')==='d'){
   document.documentElement.setAttribute('data-theme','dark');
   document.getElementById('dbtn').textContent='☀️';
-}
-
-// INSTALL BANNER
-if(!localStorage.getItem('install-dismissed')){
-  document.getElementById('install-banner').style.display='block';
-}
-function closeInstall(){
-  document.getElementById('install-banner').style.display='none';
-  localStorage.setItem('install-dismissed','1');
 }
 
 async function init(){
