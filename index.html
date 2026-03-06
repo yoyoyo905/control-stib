@@ -207,7 +207,7 @@
     </div>
   </div>
 
-  <button class="rpbtn" onclick="openModal()">🚨 Signaler un contrôle</button>
+  <button id="report-btn" class="rpbtn" onclick="openModal()">🚨 Signaler un contrôle</button>
 
   <div class="filters">
     <button class="ftab active" onclick="setFilter('all',this)">Tous</button>
@@ -298,6 +298,7 @@ metro: {
     "7":["Heysel", "Saint-Lambert", "De Wand", "Araucaria", "Buissonnets", "Heembeek", "Docks Bruxsel", "Princesse Elisabeth", "Demolder", "Hôp. Paul Brien", "Louis Bertrand", "Héliotropes", "Chazal", "Léopold III", "Meiser", "Diamant", "Georges Henri", "Montgomery", "Boileau", "Pétillon", "Arsenal", "VUB", "Etterbeek Gare", "Roffiaen", "Buyl", "Cambre-Etoile", "Legrand", "Bascule", "Longchamp", "Gossart", "Cavell", "Churchill", "Vanderkindere"],
     "8":["Roodebeek", "Woluwe Shopping", "Voot", "Parc des Sources", "Musée du Tram", "Empain", "Rond-Point Souverain", "Auderghem Shopping", "Herrmann-Debroux", "Parc Seny", "Tenreuken", "Fauconnerie", "Wiener", "Delleur", "Boitsfort Gare", "Hippodrome Boitsfort", "Boondael Gare", "Bresil", "Marie-Jose", "Solbosch", "ULB", "Jeanne", "Buyl", "Cambre-Etoile", "Legrand", "Abbaye", "Vleurgat", "Bailli", "Defacqz", "Stephanie", "Louise"],
     "9":["Roi Baudouin", "Stade", "Palfijn", "De Heyn", "Arbre Ballon", "UZ-Pédiatrie", "UZ Brussel", "Ancienne Barriere", "Exposition", "Square du Centenaire", "Bruxellois", "Miroir", "Broustin", "Simonis", "Besme", "Bossaert-Basilique", "Collège S.-Cœur", "Goffin", "Valida", "Schweitzer", "Vereman", "Azur", "Hunderenveld", "Groot-Bijgaarden"],
+    "10":["Churchill", "Vanderkindere", "Berkendael", "Albert", "Horta", "Parvis de Saint-Gilles", "Porte de Hal", "Gare du Midi", "Lemonnier", "Anneessens", "Bourse", "De Brouckère", "Rogier", "Gare du Nord", "Thomas", "Masui", "Mabru", "Docks Bruxsel", "Heembeek", "Ancre", "Zavelput", "Peter Benoit", "Chemin Vert", "Nelson Mandela", "M. Yourcenar", "Simone Veil", "Mercator", "Hopital Militaire"],
     "19":["De Wand", "Saint-Lambert", "Stuyvenbergh", "Ernest Salu", "Guill. De Greef", "Cimetière de Jette", "Gare de Jette", "Lenoir", "Place R. Astrid", "Miroir", "Broustin", "Simonis"],
     "25":["Rogier", "Gare du Nord", "Thomas", "Liedts", "Lefrancq", "Robiano", "Coteaux", "Bienfaiteurs", "Patrie", "Meiser", "Diamant", "Georges Henri", "Montgomery", "Boileau", "Pétillon", "Arsenal", "VUB", "Etterbeek Gare", "Roffiaen", "Buyl", "ULB", "Solbosch", "Marie-Jose", "Bresil", "Boondael Gare"],
     "39":["Ban-Eik", "Ter Meeren", "Ruisseau", "Louis Marcelis", "Bel-Air", "De Burbure", "Eglantiers", "Amitie", "Stockel", "Escrime", "Aviation", "Rue Au Bois", "Madoux", "De Villalobar", "Musée du Tram", "Chien Vert", "Jules Cesar", "Leopold Ii", "Gj Martin", "Montgomery"],
@@ -563,6 +564,39 @@ async function confirm_(id,cur,done){
   await loadAlerts();showToast('👀 Confirmé !','ok');
 }
 
+const COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+
+function getCooldownRemaining(){
+  const last = localStorage.getItem('last_report');
+  if(!last) return 0;
+  const elapsed = Date.now() - parseInt(last);
+  return Math.max(0, COOLDOWN_MS - elapsed);
+}
+
+function formatCountdown(ms){
+  const m = Math.floor(ms/60000);
+  const s = Math.floor((ms%60000)/1000);
+  return `${m}m${s.toString().padStart(2,'0')}s`;
+}
+
+function updateReportBtn(){
+  const btn = document.getElementById('report-btn');
+  if(!btn) return;
+  const remaining = getCooldownRemaining();
+  if(remaining > 0){
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+    btn.innerHTML = `⏳ Disponible dans ${formatCountdown(remaining)}`;
+    setTimeout(updateReportBtn, 1000);
+  } else {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    btn.innerHTML = '🚨 Signaler un contrôle';
+  }
+}
+
 async function submit(){
   const line=document.getElementById('sel-line').value;
   const station=document.getElementById('sel-station').value;
@@ -574,13 +608,18 @@ async function submit(){
   try{
     const{error}=await db.from('alerts').insert([{type:curType,line,station,direction:dir||null,inspectors:curInsp,votes:0,confirmations:0}]);
     if(error)throw error;
+    localStorage.setItem('last_report', Date.now().toString());
     closeModal();showToast('✅ Signalement envoyé ! Merci !','ok');
     await loadAlerts();
+    updateReportBtn();
   }catch(e){showToast('Erreur lors de l\'envoi.','err');}
   finally{btn.disabled=false;btn.textContent='✅ Confirmer le signalement';}
 }
 
-function openModal(){document.getElementById('modal').classList.add('open');document.body.style.overflow='hidden';}
+function openModal(){
+  if(getCooldownRemaining() > 0) return;
+  document.getElementById('modal').classList.add('open');document.body.style.overflow='hidden';
+}
 function closeModal(){
   document.getElementById('modal').classList.remove('open');document.body.style.overflow='';
   document.getElementById('sel-line').value='';
@@ -597,6 +636,7 @@ function showToast(msg,type=''){
 
 // SQL needed: ALTER TABLE alerts ADD COLUMN IF NOT EXISTS confirmations integer DEFAULT 0;
 init();
+updateReportBtn();
 </script>
 </body>
 </html>
