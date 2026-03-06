@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contrôle STIB Alert</title>
+  <meta name="description" content="Signalez les contrôles STIB en temps réel." />
+  <meta name="theme-color" content="#003082" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚨</text></svg>" />
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --y:#FFD100;--b:#003082;--bl:#0044b8;--r:#e63946;--g:#2a9d4e;
+      --bg:#f0f2f8;--card:#fff;--txt:#1a1a2e;--muted:#6b7280;--border:#e2e8f0;
+      --shadow:0 2px 12px rgba(0,48,130,.10);
+    }
+    [data-theme=dark]{
+      --bg:#0f1117;--card:#1a1d27;--txt:#f0f2f8;--muted:#9ca3af;--border:#2d3148;
+      --shadow:0 2px 12px rgba(0,0,0,.4);
+    }
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;transition:background .3s,color .3s}
+    header{background:var(--b);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.25)}
+    .hi{max-width:680px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;gap:10px}
+    .badge{background:var(--y);color:var(--b);font-weight:900;font-size:14px;padding:4px 9px;border-radius:6px}
+    .logo h1{font-size:17px;font-weight:700}
+    .logo p{font-size:11px;opacity:.75}
+    .hr{display:flex;align-items:center;gap:8px}
+    .live{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);padding:5px 10px;border-radius:20px;font-size:12px;font-weight:600}
+    .dot{width:7px;height:7px;background:#4ade80;border-radius:50%;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+    .dtoggle{background:rgba(255,255,255,.12);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+    main{max-width:680px;margin:0 auto;padding:16px 14px 80px}
+    .stats{display:flex;gap:8px;margin-bottom:16px}
+    .stat{flex:1;background:var(--card);border-radius:12px;padding:12px 8px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border)}
+    .snum{font-size:26px;font-weight:800;color:var(--b);line-height:1}
+    .snum.r{color:var(--r)}
+    .slabel{font-size:10px;color:var(--muted);margin-top:3px;font-weight:500}
+    .infobar{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:9px 13px;font-size:12px;color:#7c5c00;margin-bottom:14px}
+    [data-theme=dark] .infobar{background:#2a2400;border-color:#5c4a00;color:#ffd54f}
+    .rpbtn{width:100%;background:var(--y);color:var(--b);border:none;border-radius:14px;padding:15px 20px;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;box-shadow:0 4px 16px rgba(255,209,0,.35);transition:all .15s}
+    .rpbtn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,209,0,.5)}
+    .filters{display:flex;gap:7px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+    .filters::-webkit-scrollbar{display:none}
+    .ftab{flex-shrink:0;padding:6px 14px;border-radius:20px;border:2px solid var(--border);background:var(--card);font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .15s}
+    .ftab.active{background:var(--b);border-color:var(--b);color:#fff}
+    .stitle{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+    .alist{display:flex;flex-direction:column;gap:10px}
+    .acard{background:var(--card);border-radius:14px;padding:14px;box-shadow:var(--shadow);border:1px solid var(--border);border-left:4px solid var(--r);animation:fi .3s ease}
+    @keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .acard.metro{border-left-color:var(--b)}
+    .acard.tram{border-left-color:var(--r)}
+    .acard.bus{border-left-color:#f97316}
+    .acard.verified{box-shadow:0 0 0 2px var(--g),var(--shadow)}
+    .atop{display:flex;align-items:flex-start;gap:12px}
+    .lbadge{min-width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:#fff;flex-shrink:0}
+    .lbadge.metro{background:var(--b)}
+    .lbadge.tram{background:var(--r)}
+    .lbadge.bus{background:#f97316}
+    .acontent{flex:1;min-width:0}
+    .arow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .atype{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+    .vbadge{background:var(--g);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+    .astation{font-size:15px;font-weight:700;color:var(--txt);margin-top:2px}
+    .adir{font-size:12px;color:var(--muted);margin-top:2px}
+    .ainsp{display:inline-flex;align-items:center;gap:4px;background:#fff3cd;color:#856404;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px;margin-top:4px}
+    [data-theme=dark] .ainsp{background:#3a2f00;color:#ffc107}
+    .abot{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+    .atime{font-size:11px;color:var(--muted);margin-right:auto}
+    .ebar-wrap{flex:1;min-width:60px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+    .ebar{height:100%;border-radius:2px;background:var(--g);transition:background .3s}
+    .ebar.warn{background:#f59e0b}
+    .ebar.danger{background:var(--r)}
+    .abtn{display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;white-space:nowrap}
+    .abtn:hover{border-color:var(--b);color:var(--b)}
+    .abtn.voted{background:#eef2ff;border-color:var(--b);color:var(--b)}
+    .srow{display:flex;gap:6px;margin-top:8px}
+    .sbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border-radius:9px;border:none;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;transition:all .15s}
+    .sbtn:hover{opacity:.85;transform:translateY(-1px)}
+    .swapp{background:#25d366;color:#fff}
+    .stele{background:#0088cc;color:#fff}
+    .install-banner{background:linear-gradient(135deg,#003082,#0044b8);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;position:relative}
+    .install-banner h3{font-size:14px;font-weight:800;margin-bottom:6px}
+    .install-banner p{font-size:12px;opacity:.9;line-height:1.5;margin-bottom:10px}
+    .install-steps{display:flex;gap:8px;margin-bottom:10px}
+    .install-step{flex:1;background:rgba(255,255,255,.15);border-radius:10px;padding:8px;font-size:11px;text-align:center;line-height:1.4}
+    .install-step span{display:block;font-size:18px;margin-bottom:3px}
+    .install-close{position:absolute;top:10px;right:12px;background:rgba(255,255,255,.2);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+    /* MODAL */
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+    .overlay.open{display:flex}
+    .modal{background:var(--card);border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:680px;animation:su .25s ease;max-height:92vh;overflow-y:auto}
+    @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .mhandle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px}
+    .modal h2{font-size:19px;font-weight:800;color:var(--b);margin-bottom:18px}
+    .fg{margin-bottom:14px}
+    .fg label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}
+    .fg select,.fg input{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:10px;font-size:15px;color:var(--txt);background:var(--card);transition:border-color .15s;appearance:none;-webkit-appearance:none}
+    .fg select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-color:var(--card);padding-right:40px;cursor:pointer}
+    .fg select:focus,.fg input:focus{outline:none;border-color:var(--b)}
+    .ttabs{display:flex;gap:7px;margin-bottom:10px}
+    .ttab{flex:1;padding:9px;border:2px solid var(--border);border-radius:10px;background:var(--card);cursor:pointer;text-align:center;font-size:12px;font-weight:700;transition:all .15s;color:var(--muted)}
+    .ttab span{display:block;font-size:17px;margin-bottom:2px}
+    .ttab.active{border-color:var(--b);color:var(--b);background:#eef2ff}
+    [data-theme=dark] .ttab.active{background:#1a2550}
+    .igrid{display:flex;gap:7px}
+    .iopt{flex:1;padding:8px 4px;border:2px solid var(--border);border-radius:10px;background:var(--card);cursor:pointer;text-align:center;font-size:11px;font-weight:700;color:var(--muted);transition:all .15s}
+    .iopt span{display:block;font-size:18px;margin-bottom:2px}
+    .iopt.active{border-color:#f59e0b;color:#92400e;background:#fef3c7}
+    [data-theme=dark] .iopt.active{background:#3a2500;color:#fbbf24}
+    .subbtn{width:100%;background:var(--b);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;transition:all .15s}
+    .subbtn:hover{background:var(--bl)}
+    .subbtn:disabled{opacity:.6;cursor:not-allowed}
+    .cancelbtn{width:100%;background:transparent;color:var(--muted);border:none;padding:10px;font-size:14px;cursor:pointer;margin-top:4px}
+    .empty{text-align:center;padding:50px 20px;color:var(--muted)}
+    .empty .ei{font-size:48px;margin-bottom:10px}
+    .empty h3{font-size:16px;font-weight:700;color:var(--txt);margin-bottom:5px}
+    .empty p{font-size:13px;line-height:1.5}
+    .loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+    .spin{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--b);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 10px}
+    @keyframes sp{to{transform:rotate(360deg)}}
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#1a1a2e;color:#fff;padding:11px 22px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:transform .3s ease;box-shadow:0 4px 20px rgba(0,0,0,.3);white-space:nowrap}
+    .toast.show{transform:translateX(-50%) translateY(0)}
+    .toast.ok{background:var(--g)}
+    .toast.err{background:var(--r)}
+    footer{text-align:center;padding:14px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);margin-top:16px}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hi">
+    <div class="logo">
+      <div class="badge">STIB</div>
+      <div>
+        <h1>Contrôle Alert</h1>
+        <p>Signalements en temps réel</p>
+      </div>
+    </div>
+    <div class="hr">
+      <button class="dtoggle" onclick="toggleDark()" id="dbtn">🌙</button>
+      <div class="live"><div class="dot"></div>LIVE</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="stats">
+    <div class="stat"><div class="snum r" id="s-active">–</div><div class="slabel">Contrôles actifs</div></div>
+    <div class="stat"><div class="snum" id="s-today">–</div><div class="slabel">Signalements</div></div>
+    <div class="stat"><div class="snum" id="s-visits">–</div><div class="slabel">Visites aujourd'hui</div></div>
+    <div class="stat"><div class="snum" id="s-total-visits">–</div><div class="slabel">Visites total</div></div>
+  </div>
+
+  <div class="infobar">⏱️ Les signalements expirent automatiquement après <strong>2 heures</strong></div>
+
+  <div class="install-banner" id="install-banner" style="display:none">
+    <button class="install-close" onclick="closeInstall()">✕</button>
+    <h3>📱 Installer l'app sur votre téléphone</h3>
+    <p>Ajoutez Contrôle Alert sur votre écran d'accueil pour un accès rapide — sans passer par l'App Store !</p>
+    <div class="install-steps">
+      <div class="install-step"><span>🍎</span><strong>iPhone</strong><br>Safari → ⬆️ Partager → "Sur l'écran d'accueil"</div>
+      <div class="install-step"><span>🤖</span><strong>Android</strong><br>Chrome → ⋮ → "Ajouter à l'écran d'accueil"</div>
+    </div>
+  </div>
+
+  <button class="rpbtn" onclick="openModal()">🚨 Signaler un contrôle</button>
+
+  <div class="filters">
+    <button class="ftab active" onclick="setFilter('all',this)">Tous</button>
+    <button class="ftab" onclick="setFilter('metro',this)">🚇 Métro</button>
+    <button class="ftab" onclick="setFilter('tram',this)">🚋 Tram</button>
+    <button class="ftab" onclick="setFilter('bus',this)">🚌 Bus</button>
+  </div>
+
+  <div class="stitle" id="list-title">Contrôles signalés</div>
+  <div class="alist" id="alist"><div class="loading"><div class="spin"></div>Chargement...</div></div>
+</main>
+
+<footer>
+  Contrôle STIB Alert — Données partagées anonymement par la communauté<br>
+  Les alertes expirent après 2h. Vérifiez toujours votre titre de transport ✌️
+</footer>
+
+<!-- MODAL -->
+<div class="overlay" id="modal" onclick="closeOut(event)">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <h2>🚨 Signaler un contrôle</h2>
+
+    <div class="fg">
+      <label>Type de transport</label>
+      <div class="ttabs">
+        <button class="ttab active" onclick="setType('metro',this)"><span>🚇</span>Métro</button>
+        <button class="ttab" onclick="setType('tram',this)"><span>🚋</span>Tram</button>
+        <button class="ttab" onclick="setType('bus',this)"><span>🚌</span>Bus</button>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Ligne</label>
+      <select id="sel-line" onchange="updateStops()">
+        <option value="">Choisir une ligne...</option>
+      </select>
+    </div>
+
+    <div class="fg">
+      <label>Station / Arrêt</label>
+      <select id="sel-station">
+        <option value="">D'abord choisir une ligne...</option>
+      </select>
+    </div>
+
+    <div class="fg">
+      <label>Direction</label>
+      <select id="sel-dir">
+        <option value="">D'abord choisir une ligne...</option>
+      </select>
+    </div>
+
+    <div class="fg">
+      <label>Nombre d'inspecteurs</label>
+      <div class="igrid">
+        <button class="iopt active" onclick="setInsp('1',this)"><span>👤</span>1</button>
+        <button class="iopt" onclick="setInsp('2-3',this)"><span>👥</span>2-3</button>
+        <button class="iopt" onclick="setInsp('4+',this)"><span>🚨</span>4+</button>
+        <button class="iopt" onclick="setInsp('opération',this)"><span>⚠️</span>Opération</button>
+      </div>
+    </div>
+
+    <button class="subbtn" onclick="submit()">✅ Confirmer le signalement</button>
+    <button class="cancelbtn" onclick="closeModal()">Annuler</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SURL = 'https://ltswohnqnhejerkkwdkr.supabase.co';
+const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0c3dvaG5xbmhlamVya2t3ZGtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Mzc5NjcsImV4cCI6MjA4ODMxMzk2N30.Zf9y1HDDJ3Mh475ku-wu9ouIKQsQQqG3n_MZzm63vT0';
+const db = window.supabase.createClient(SURL, SKEY);
+
+const STOPS = {
+metro: {
+    "1":["Stockel", "Crainhem", "Alma", "Vandervelde", "Roodebeek", "Tomberg", "Gribaumont", "Joseph.-Charlotte", "Montgomery", "Merode", "Schuman", "Maelbeek", "Arts-Loi", "Parc", "Gare Centrale", "De Brouckère", "Sainte-Catherine", "Comte de Flandre", "Etangs Noirs", "Beekkant", "Gare de l'Ouest"],
+    "2":["Elisabeth", "Ribaucourt", "Yser", "Rogier", "Botanique", "Madou", "Arts-Loi", "Trône", "Porte de Namur", "Louise", "Hôtel des Monnaies", "Porte de Hal", "Gare du Midi", "Clémenceau", "Delacroix", "Gare de l'Ouest", "Beekkant", "Osseghem", "Simonis"],
+    "5":["Herrmann-Debroux", "Demey", "Beaulieu", "Delta", "Hankar", "Pétillon", "Thieffry", "Merode", "Schuman", "Maelbeek", "Arts-Loi", "Parc", "Gare Centrale", "De Brouckère", "Sainte-Catherine", "Comte de Flandre", "Etangs Noirs", "Beekkant", "Gare de l'Ouest", "Jacques Brel", "Aumale", "Saint-Guidon", "Veeweyde", "Bizet", "La Roue", "Ceria", "Eddy Merckx", "Erasme"],
+    "6":["Elisabeth", "Ribaucourt", "Yser", "Rogier", "Botanique", "Madou", "Arts-Loi", "Trône", "Porte de Namur", "Louise", "Hôtel des Monnaies", "Porte de Hal", "Gare du Midi", "Clémenceau", "Delacroix", "Gare de l'Ouest", "Beekkant", "Osseghem", "Simonis", "Belgica", "Pannenhuis", "Bockstael", "Stuyvenbergh", "Houba-Brugmann", "Heysel", "Roi Baudouin"]
+  },
+  tram: {
+    "4":["Stalle", "Carrefour Stalle", "Egide Van Ophem", "Wagon", "Globe", "Heros", "Boetendael", "Messidor", "Vanderkindere", "Berkendael", "Albert", "Horta", "Parvis de Saint-Gilles", "Porte de Hal", "Gare du Midi", "Lemonnier", "Anneessens", "Bourse", "De Brouckère", "Rogier", "Gare du Nord"],
+    "7":["Heysel", "Saint-Lambert", "De Wand", "Araucaria", "Buissonnets", "Heembeek", "Docks Bruxsel", "Princesse Elisabeth", "Demolder", "Hôp. Paul Brien", "Louis Bertrand", "Héliotropes", "Chazal", "Léopold III", "Meiser", "Diamant", "Georges Henri", "Montgomery", "Boileau", "Pétillon", "Arsenal", "VUB", "Etterbeek Gare", "Roffiaen", "Buyl", "Cambre-Etoile", "Legrand", "Bascule", "Longchamp", "Gossart", "Cavell", "Churchill", "Vanderkindere"],
+    "8":["Roodebeek", "Woluwe Shopping", "Voot", "Parc des Sources", "Musée du Tram", "Empain", "Rond-Point Souverain", "Auderghem Shopping", "Herrmann-Debroux", "Parc Seny", "Tenreuken", "Fauconnerie", "Wiener", "Delleur", "Boitsfort Gare", "Hippodrome Boitsfort", "Boondael Gare", "Bresil", "Marie-Jose", "Solbosch", "ULB", "Jeanne", "Buyl", "Cambre-Etoile", "Legrand", "Abbaye", "Vleurgat", "Bailli", "Defacqz", "Stephanie", "Louise"],
+    "9":["Roi Baudouin", "Stade", "Palfijn", "De Heyn", "Arbre Ballon", "UZ-Pédiatrie", "UZ Brussel", "Ancienne Barriere", "Exposition", "Square du Centenaire", "Bruxellois", "Miroir", "Broustin", "Simonis", "Besme", "Bossaert-Basilique", "Collège S.-Cœur", "Goffin", "Valida", "Schweitzer", "Vereman", "Azur", "Hunderenveld", "Groot-Bijgaarden"],
+    "10":["Churchill", "Vanderkindere", "Berkendael", "Albert", "Horta", "Parvis de Saint-Gilles", "Porte de Hal", "Gare du Midi", "Lemonnier", "Anneessens", "Bourse", "De Brouckère", "Rogier", "Gare du Nord", "Thomas", "Masui", "Mabru", "Docks Bruxsel", "Heembeek", "Ancre", "Zavelput", "Peter Benoit", "Chemin Vert", "Nelson Mandela", "M. Yourcenar", "Simone Veil", "Mercator", "Hopital Militaire"],
+    "12":["Trône", "Luxembourg", "Maelbeek", "Schuman", "Meiser", "Geneve", "Da Vinci", "Bourget", "Brussels Airport"],
+    "13":["Uz-Vub", "UZ Brussel", "UZ-Pédiatrie", "Arbre Ballon", "Audrey Hepburn", "Dieleghem", "Bonaventure", "Fernande Volral", "Eugene Toussaint", "Le Roux", "Square du Centenaire", "Home Heydeken", "Lowet", "Nereus", "Delhove", "Riethuisen", "Parc Elisabeth", "Simonis", "Vanhuffel", "Autrique", "Etangs Noirs"],
+    "14":["Gare du Nord", "Wtc", "Suzan Daniel", "Picard", "Belgica", "Firmin Lecharlier", "Leopold I", "Verbeyst", "Demineurs", "Gare De Jette", "Lorge", "Crocq", "Bonaventure", "Ancienne Barriere", "UZ Brussel", "Uz-Vub"],
+    "17":["Heiligenborre", "Internat. School", "Etangs Boitsfort", "Diabolo", "Wiener", "Miraval", "Les 3 Tilleuls", "Calypso 2000", "Vander Elst", "Keym", "Brillant", "Tercoigne", "Gardon", "Berensheide", "Beaulieu"],
+    "18":["Van Haelen", "Crematorium", "Bourdon", "Engeland", "Uccle Calevoet", "Jeanne Herreman", "Rittweger", "Globe", "Xavier De Bue", "Bens", "Roosendael", "Coghen", "Altitude Cent", "Jupiter", "Albert"],
+    "19":["De Wand", "Saint-Lambert", "Stuyvenbergh", "Ernest Salu", "Guill. De Greef", "Cim. De Jette", "Gare De Jette", "Lenoir", "Place R. Astrid", "Miroir", "Broustin", "Simonis"],
+    "20":["Gare du Nord", "Wtc", "Suzan Daniel", "Ribaucourt", "Merchtem", "Etangs Noirs", "Osseghem", "Karreveld", "Bastogne", "Benes", "Winteroy", "Genot", "Schweitzer", "Comhaire", "Place De L'Eglise", "Broek", "Sept Etoiles", "Hunderenveld"],
+    "21":["Luxembourg", "Treves", "Parc Leopold", "Maelbeek", "Marie-Louise", "Ambiorix", "Schuman", "Michel-Ange", "Gueux", "Jamblinne De Meux", "Plasky", "Diamant", "Colonel Bourg", "Carene", "Mommaerts", "Rtl House", "Paul Leduc", "Geneve", "Evere Shopping", "Loisirs", "Permeke", "Hoedemaekers", "Oud-Kapelleke", "Bordet Station", "Sabca", "Middelweg", "Maes"],
+    "25":["Rogier", "Gare du Nord", "Thomas", "Liedts", "Lefrancq", "Robiano", "Coteaux", "Bienfaiteurs", "Patrie", "Meiser", "Diamant", "Georges Henri", "Montgomery", "Boileau", "Pétillon", "Arsenal", "VUB", "Etterbeek Gare", "Roffiaen", "Buyl", "ULB", "Solbosch", "Marie-Jose", "Bresil", "Boondael Gare"],
+    "28":["Konkel", "Don Bosco", "Stade Fallon", "Parc Malou", "Deportes", "Voot", "Slegers", "Melard", "Tomberg", "Montald", "Meudon", "Degrooff", "Georges Henri", "Vergote", "Diamant", "Victor Hugo", "Jamblinne De Meux", "Chasseurs Arden.", "Brabanconne"],
+    "29":["Hof Ten Berg", "Jespers", "Marcel Thiry", "Peupliers", "Charmille", "Roodebeek", "Hymans", "Moonens", "Verheyleweghen", "Speeckaert", "Heydenberg", "Mai", "Levie", "Diamant", "Plasky", "Radium", "Dailly", "Vincotte", "Clovis", "Waterloo Wilson", "Gutenberg", "Saint-Josse", "Madou", "Presse", "Parc", "Rosa Parks", "Gare Centrale", "Arenberg", "De Brouckère"],
+    "34":["Sainte-Anne", "Deux Chaussees", "Bergoje", "Auderghem Shopping", "Valduc", "Vandromme", "Eglise St-Julien", "Hankar", "Strategie", "Arsenal", "Buedts", "La Chasse", "Fetis", "Etangs", "Museum", "Idalie", "Luxembourg", "Science", "Trône", "Porte de Namur"],
+    "35":["Esplanade", "De Wand", "Araucaria", "Buissonnets", "Heembeek", "Docks Bruxsel", "Schaerbeek Gare"],
+    "36":["Konkel", "Val Des Seigneurs", "Gersis", "Stockel", "Bouleaux", "Paddock", "Sainte-Alix", "Vander Meerschen", "Manoir D'Anjou", "Rue Au Bois", "Mareyde", "Mertens", "Kelle", "Musée du Tram", "Chien Vert", "Jules Cesar", "Ocean Atlantique", "Chant D'Oiseau", "Mouettes", "Dreve De Nivelles", "Baron De Castro", "Boileau", "Thieffry", "Roi Vainqueur", "Onze Novembre", "La Chasse", "Louis Hap", "Leman", "Nerviens", "Froissart", "Maelbeek"],
+    "37":["Gare De Linkebeek", "Hospices", "Homborch", "Gazelle", "Pasteur", "Verrewinkel", "Gui", "Directoire", "De Wansijn", "Place Saint-Job", "Gare De Saint-Job", "Mercure", "Observatoire", "Houzeau", "Statuaires", "Heros", "College St-Pierre", "Peyo", "Coghen", "Moliere-Longchamp", "Timmermans", "Albert"],
+    "38":["Heros", "Statuaires", "Zeecrabbe", "Houzeau", "Floride", "Rene Gobert", "Montjoie", "Gossart", "Longchamp", "Bascule", "Van Eyck", "Vleurgat", "Biarritz", "Flagey", "Malibran", "Blyckaerts", "Idalie", "Luxembourg", "Science", "Trône", "Royale"],
+    "39":["Ban-Eik", "Ter Meeren", "Ruisseau", "Louis Marcelis", "Bel-Air", "De Burbure", "Eglantiers", "Amitie", "Stockel", "Escrime", "Aviation", "Rue Au Bois", "Madoux", "De Villalobar", "Musée du Tram", "Chien Vert", "Jules Cesar", "Leopold Ii", "Gj Martin", "Montgomery"],
+    "41":["Transvaal", "Sacre-Coeur", "Schoonejans", "Herrmann-Debroux", "Demey", "Vignette", "Pecheries", "Tritomas", "Archiducs", "Hannetons", "Loutrier", "Keym", "Watermael Gare", "Bien-Faire", "Dries", "Futaie", "Boondael Gare", "Bresil", "Gendarmes", "Montana", "Vert Chasseur", "Hop.Ste-Elisabeth", "Floride", "Houzeau", "Statuaires", "Heros"],
+    "42":["Viaduc E40", "Thumas", "Saint-Antoine", "Annecy", "Lenneke Mare", "Ucl Saint-Luc", "Dunette", "Hof Ter Musschen", "Thiry-Woluwe", "Marcel Thiry", "Peupliers", "Charmille", "Roodebeek"],
+    "43":["Vivier D'Oie", "Racing", "Fort-Jaco", "Ronces", "Van Bever", "Prince D'Orange", "Napoleon", "Sainte-Alliance", "Gui", "Verrewinkel", "Pasteur", "Gazelle", "Homborch", "Cabris", "Gare De Linkebeek", "Braves", "Vieux Chemin", "Moensberg Gare", "Griottes", "Bigarreaux", "Bourdon", "Engeland", "Uccle Calevoet", "Jeanne Herreman", "Rittweger", "Globe", "Heros"],
+    "44":["Tervuren Station", "Oppemstraat", "Brusselsesteenweg", "Ravenstein", "Quatre Bras", "Tir Aux Pigeons", "Dreve Des Brules", "Auderghem-Foret", "Trois Couleurs", "Madoux", "De Villalobar", "Musée du Tram", "Chien Vert", "Jules Cesar", "Leopold Ii", "Gj Martin", "Montgomery"],
+    "45":["Saint-Vincent", "Fonson", "Paix", "Oud-Kapelleke", "Hoedemaekers", "Permeke", "Loisirs", "Dunant", "Guillaume", "Paduwa", "Ciceron", "Gulledelle", "Ariane", "Marcel Thiry", "Peupliers", "Charmille", "Roodebeek"],
+    "46":["Pannenhuis", "Pouchkine", "Andree De Jongh", "Entrepot", "Tour Et Taxis", "Suzan Daniel", "Wtc", "Nicolay", "Yser", "De Brouckère", "Bourse", "Buanderie", "Pte D'Anderlecht", "Liverpool", "Clémenceau", "Albert I", "Cureghem", "Douvres", "Résistance", "Saint-Guidon", "Meir", "De Linde", "Hopital Bracops", "Scherdemael", "Vanhellemont", "Neerpede", "Sibelius", "Westland Shopping", "Moortebeek"],
+    "47":["Vilvoorde Station", "Heldenplein", "Kassei", "Ensor", "Ennepetal", "Twee Leeuwenweg", "Vtm", "Hopital Militaire", "Mercator", "Simone Veil", "Marly", "Pavillons Meudon", "Trois Pertuis", "Rive Gauche", "Biebuyck", "Avant-Port", "Heembeek"],
+    "48":["Decroly", "Gatti De Gamond", "Domaine", "Mystere", "Duden", "Altitude Cent", "Moliere-Longchamp", "Timmermans", "Albert", "Mont Kemmel", "Laine", "Rochefort", "Serbie", "Avenue Du Roi", "Suède", "Gare du Midi", "Porte de Hal", "Hop. Saint-Pierre", "Jeu De Balle", "Chapelle", "Grand Sablon", "Grand-Place", "Manneken-Pis", "Rouppe", "Anneessens"],
+    "49":["Simonis", "Liberte", "Sippelberg", "Bastogne", "Cim. De Molenbeek", "Leroy", "Candries", "Machtens", "Prince De Liege", "Mehdi Bouda", "Paulsen", "Jakob Smits", "Beaute", "Broeren", "Résistance", "Saint-Guidon", "Meir", "Veeweyde", "Aristide Briand", "Van Kalken", "Digue Du Canal", "Ile Sainte-Helene", "Charroi", "Wiels", "Orban", "Imprimerie", "Avenue Du Roi", "Suède", "Gare du Midi"],
+    "50":["Lot Station", "Station Lot", "Waterbury", "Laekebeek", "Voetbalclub", "Kapel Ruisbroek", "Sportcentrum", "Ruisbroek Centrum", "Kerk Ruisbroek", "Gilson", "Rue Longue", "Uccle Sport", "Bempt", "Max Waller", "Saint-Denis", "Bervoets", "Charroi", "Wiels", "Orban", "Imprimerie", "Avenue Du Roi", "Suède", "Gare du Midi"],
+    "51":["Gare du Midi", "Lemonnier", "Pte D'Anderlecht", "Arts Et Metiers", "Porte De Ninove", "Porte De Flandre", "Marguerite Duras", "Belgica", "Odon Warland", "Woeste", "Demineurs", "Cim. De Jette", "Guill. De Greef", "Hopital Brugmann", "Polycl. Brugmann", "Stienon", "Stade"],
+    "52":["Bervoets", "Union", "Pierre Decoster", "Barriere", "Parvis de Saint-Gilles", "Porte de Hal", "Hop. Saint-Pierre", "Jeu De Balle", "Chapelle", "Madeleine"],
+    "53":["Hopital Militaire", "Ferme Nos Pilifs", "Val Maria", "Peter Benoit", "Kruipweg", "Beyseghem", "Versailles", "Long Bonnier", "Pagodes", "De Wand", "Serres Royales", "Schola Europea", "Artistes", "Karel Bogaerd", "Gare De Bockstael", "Bockstael", "Emile Delva", "Amelie Gomand", "Woeste", "Leopold I", "Miroir", "Simpson", "Riethuisen", "Bossaert-Basilique", "Bastogne", "Cim. De Molenbeek", "Leroy", "Candries", "Machtens", "Prince De Liege", "Mehdi Bouda", "Peterbos", "Fruits", "Westland Shopping"],
+    "54":["Forest (Bervoets)", "Bervoets", "Saint-Denis", "Gare Forest-Est", "Forest National", "Mystere", "Duden", "Tournoi", "Jupiter", "Albert", "Prison", "Ma Campagne", "Vanne", "Fernand Cocq", "Quartier Saint-Boniface", "Porte de Namur", "Trône"],
+    "55":["Rogier", "Gare du Nord", "Thomas", "Liedts", "Gallait", "Pavillon", "Verboekhoven", "Waelhem", "Foyer Schaerbeek.", "Helmet", "Tilleul", "Fonson", "Bordet Station", "Da Vinci"],
+    "56":["Buda", "Simone Veil", "Mercator", "Hopital Militaire", "Ferme Nos Pilifs", "Val Maria", "Peter Benoit", "Croix De Guerre", "Verger", "Pres Communs", "Heembeek", "Docks Bruxsel", "Princesse Elisabeth", "Verboekhoven", "Colignon", "Pogge", "Voltaire", "Crossing", "Azalees", "Paul Deschanel", "Bremer", "Dailly", "Brabanconne", "Ambiorix", "Marie-Louise", "Maelbeek"],
+    "58":["Albert Ii", "Gare du Nord", "Wtc", "Glibert", "Destouvelles", "Masui", "Stephenson", "Pavillon", "Verboekhoven", "Princesse Elisabeth", "Docks Bruxsel", "Pont Albert", "Monnoyer", "Chemin De Fer", "Ceres", "Rive Droite", "Aquiris", "Diegemstraat", "Bicoque", "Vier Fonteinen", "Machelenstraat", "Blokken", "Vilvoorde Station"],
+    "59":["Bordet Station", "Vandenhoven", "Saint-Vincent", "Picardie", "Carli", "Chaumontel", "Anatole France", "Huart-Hamoir", "Schaerbeek Gare", "Princesse Elisabeth", "Verboekhoven", "Eenens", "Neptunium", "Herman", "Coteaux", "Geefs", "Bossuet", "Houwaert", "Braemt", "Gutenberg", "Marie-Louise", "Maelbeek", "Parc Leopold", "Jourdan", "Natation", "Wery", "Flagey", "Levure", "Hop. Ett.-Ixelles"],
+    "60":["Uccle Calevoet", "Engeland", "Groelstveld", "Hellevelt", "Chenaie", "Drossart", "De Wansijn", "Place Saint-Job", "Gare De Saint-Job", "Mercure", "Observatoire", "Houzeau", "Langeveld", "Brunard", "Cavell", "Marie Depage", "Georges Brugmann", "Lepoutre", "Washington", "Van Eyck", "Vleurgat", "Biarritz", "Flagey", "Malibran", "Blyckaerts", "Varia", "Etangs", "Jourdan", "Froissart", "Maelbeek", "Marie-Louise", "Ambiorix"],
+    "61":["Pleiades", "Capricorne", "Andromede", "Sainte-Famille", "Moonens", "Verheyleweghen", "Zephyr", "Meudon", "Degrooff", "Georges Henri", "Montgomery", "Merode", "Chevalerie", "Wappers", "Jamblinne De Meux", "Chasseurs Arden.", "Brabanconne", "Dailly", "Clays", "Fuss", "Steurs", "Bossuet", "Rue Traversiere", "Quetelet", "Botanique", "Rogier", "Gare du Nord"],
+    "62":["Heysel", "Saint-Lambert", "Stuyvenbergh", "Ernest Salu", "Guill. De Greef", "Cim. De Jette", "Foyer Jettois", "Jacobs Fontaine", "Bockstael", "Moorslede", "Princ. Clementine", "Marie-Christine", "Masui", "Liedts", "Lefrancq", "Robiano", "Coteaux", "Bienfaiteurs", "Patrie", "Meiser", "Léopold III", "Pentathlon", "Evere Shopping", "Lekaerts", "Da Vinci", "Fusee", "Bourget"],
+    "63":["Cim. De Bruxelles", "Arbre Unique", "Optimisme", "Paul Leduc", "Frans Courtens", "Léopold III", "Meiser", "Plasky", "Jamblinne De Meux", "Gueux", "Marguerite", "Ambiorix", "Waterloo Wilson", "Gutenberg", "Saint-Josse", "Madou", "Presse", "Parc", "Rosa Parks", "Gare Centrale"],
+    "64":["Bordet Station", "Vandenhoven", "Saint-Vincent", "Fonson", "Paix", "Oud-Kapelleke", "Notre-Dame", "Conscience", "Bichon", "Josaphat", "Chazal", "Patrie", "Dailly", "Brabanconne", "Ambiorix", "Marie-Louise", "Maelbeek", "Toulouse", "Treves", "Luxembourg", "Science", "Trône", "Porte de Namur"],
+    "65":["Machelen", "Raedemaekers", "Kasteel Beaulieu", "Witloof", "Twyeninck", "Haren", "Cortenbach", "Gare De Haren-Sud", "Biplan", "Vandenhoven", "Bordet Station", "Da Vinci", "Matisse", "Lekaerts", "Hoedemaekers", "Notre-Dame", "Conscience", "Bichon", "Josaphat", "Chazal", "Patrie", "Bienfaiteurs", "Coteaux", "Robiano", "Meridien", "Rue Traversiere", "Quetelet", "Madou", "Presse", "Parc", "Rosa Parks", "Gare Centrale"],
+    "66":["Peage", "Cim. De Bruxelles", "Artemis", "Paduwa", "Guillaume", "Dunant", "Evere Shopping", "Conscience", "Kurth", "Terdelt", "Latinis", "Louis Bertrand", "Crossing", "Azalees", "Paul Deschanel", "Coteaux", "Robiano", "Meridien", "Rue Traversiere", "Quetelet", "Madou", "Presse", "Parc", "Rosa Parks", "Gare Centrale"],
+    "69":["Jules Bordet", "Da Vinci", "Bordet Station", "Vandenhoven", "Saint-Vincent", "Picardie", "Carli", "Chaumontel", "Zenobe Gramme"],
+    "71":["Delta", "Beaulieu", "CHIREC", "Fraiteur", "Cimetière d'Ixelles", "ULB", "Jeanne", "Buyl", "Géo Bernier", "Étangs d'Ixelles", "Flagey", "Musée d'Ixelles", "Fernand Cocq", "Quartier Saint-Boniface", "Porte de Namur", "Trône", "Royale", "Gare Centrale", "Arenberg", "De Brouckère"],
+    "72":["Adeps", "Rouge-Cloitre", "Jardin Massart", "Herrmann-Debroux", "Demey", "Vignette", "Roodenberg", "Clesse", "Ginette Javaux", "Delta", "CHIREC", "Fraiteur", "Cimetière d'Ixelles", "ULB"],
+    "73":["Gare du Midi", "Eloy", "Veterinaires", "Deux Gares", "Petite Ile", "Hermes", "Digue Du Canal", "Labeur", "International", "Ceria"],
+    "74":["Clemence Everard", "Erasme", "Meylemeersch", "Eddy Merckx", "Trefles", "Marie Curie", "Martin Luth. King", "Frans Hals", "Debussy", "Veeweyde", "Aristide Briand", "Van Kalken", "Digue Du Canal", "Ile Sainte-Helene", "Charroi", "Bervoets", "Saint-Denis", "Gare Forest-Est", "Forest National", "Forestoise", "Decroly", "Aulne"],
+    "75":["Bon Air", "Pommier", "Westland Shopping", "Fruits", "Rene Henry", "Hopital Bracops", "Van Beethoven", "Bizet", "Waxweiler", "Wauters", "Campus Ceria", "Ceria", "Drogenbos-Shop.", "Eggergat", "Carrefour Stalle", "Egide Van Ophem", "Wagon", "Globe", "Heros"],
+    "76":["Oppem", "Jozef Baus", "Hernalsteen", "Violettes", "Plaine Des Sports", "Louis Marcelis", "Gergel", "Henriette Lauwers", "Kraainem-Shopping", "Reine Astrid", "Kraainem"],
+    "77":["Hippodrome", "Vier Huiskens", "Long-Chene", "Deutsche Schule", "Eglise Wezembeek", "Gergel", "Henriette Lauwers", "Kraainem-Shopping", "Reine Astrid", "Kraainem"],
+    "78":["Gare du Midi", "Eloy", "Veterinaires", "Deux Gares", "Petite Ile", "Hermes", "Digue Du Canal", "Labeur", "International", "Bollinckx", "Mozart", "Humanite"],
+    "79":["Maelbeek", "Marie-Louise", "Ambiorix", "Schuman", "Michel-Ange", "Gueux", "Jamblinne De Meux", "Victor Hugo", "Diamant", "Colonel Bourg", "Carene", "Pleiades", "Capricorne", "Andromede", "Gulledelle", "Ariane", "Marcel Thiry", "Thiry-Woluwe", "Hof Ter Musschen", "Cliniques-Ucl", "Auditoires-Ucl", "Mounier", "Kraainem"],
+    "80":["Haren", "Cortenbach", "Gare De Haren-Sud", "Biplan", "Vandenhoven", "Bordet Station", "Da Vinci", "Jules Bordet", "Diablotins", "Cim. De Bruxelles", "Artemis", "Paduwa", "Carene", "Colonel Bourg", "Fevrier", "Heydenberg", "Meudon", "Degrooff", "Georges Henri", "Montgomery", "Merode", "Gaulois", "Leman", "Jourdan", "Museum", "Idalie", "Luxembourg", "Science", "Trône", "Porte de Namur"],
+    "81":["Montgomery", "Merode", "Place St-Pierre", "Acacias", "La Chasse", "Église St-Antoine", "Germoir", "Levure", "Flagey", "Dautzenberg", "Bailli", "Trinité", "Suède", "Gare du Midi", "Bara", "Conseil", "Albert I", "Cureghem", "Douvres", "Résistance", "Saint-Guidon", "Meir", "Ysaye", "Van Beethoven", "Frans Hals", "Parc Vives", "Marius Renard"],
+    "82":["Bempt", "Max Waller", "Saint-Denis", "Monaco", "Zaman-Forest Nat.", "Chataignes", "Union", "Wiels", "Orban", "Imprimerie", "Avenue Du Roi", "Suède", "Gare du Midi", "Lemonnier", "Pte D'Anderlecht", "Arts Et Metiers", "Triangle", "Duchesse Brabant", "Quatre-Vents", "Gare de l'Ouest", "Joseph Baeck", "Mennekens", "Karreveld", "Cim. De Molenbeek", "Van Zande", "Genot", "Schweitzer", "Alcyons", "Berchem-Shopping", "Gare De Berchem"],
+    "83":["Val Maria", "Craetbos", "Beyseghem", "Versailles", "Long Bonnier", "Pagodes", "De Wand", "Forum", "Bergdal", "Esplanade", "Palais 12", "Heysel", "Roi Baudouin", "Amethyste", "Palfijn", "Tircher", "Pattijn", "Hop. Des Enfants", "Crocq", "Hopital Brugmann", "Bonaventure", "Fernande Volral", "Eugene Toussaint", "Le Roux", "Square du Centenaire", "Nereus", "Sorensen", "Beeckmans", "De Villegas", "Pampoel", "Basilix", "Bois Des Iles", "Gare De Berchem"],
+    "86":["Bockstael", "Nekkersdal", "Pouchkine", "Andree De Jongh", "Entrepot", "Tour Et Taxis", "Suzan Daniel", "Ribaucourt", "Merchtem", "Etangs Noirs", "Borne", "Savonnerie", "Duchesse Brabant", "Quatre-Vents", "Gare de l'Ouest", "Joseph Baeck", "Dubois", "Tamaris", "Machtens"],
+    "87":["Beekkant", "Joseph Baeck", "Dubois", "Tamaris", "Condor", "Candries", "Thym", "Hoogbosch", "Elbers", "Cimetieres", "Maricolles", "Broek", "Sept Etoiles", "Hunderenveld", "Parc Monnet", "Berchem-Shopping", "Gare De Berchem", "Bois Des Iles", "Basilix", "Chopin", "Ganshoren-Sport", "Het Veroost", "Neuberger", "Lowet", "Nereus", "Sorensen", "Beeckmans", "Collège S.-Cœur", "Riethuisen", "Parc Elisabeth", "Simonis"],
+    "88":["Uz-Vub", "UZ Brussel", "UZ-Pédiatrie", "Arbre Ballon", "Audrey Hepburn", "Boule Et Bill", "Hop. Des Enfants", "Crocq", "Lorge", "Gare De Jette", "Demineurs", "Cim. De Jette", "Guill. De Greef", "Prince Leopold", "Jacobs Fontaine", "Emile Delva", "Bockstael", "Nekkersdal", "Pouchkine", "Andree De Jongh", "Entrepot", "Tour Et Taxis", "Willebroek", "Destouvelles", "Glibert", "Wtc", "Gare du Nord", "Rogier", "De Brouckère"],
+    "89":["Gare Centrale", "Arenberg", "De Brouckère", "Bourse", "Dansaert", "Porte De Flandre", "Porte De Ninove", "Triangle", "Duchesse Brabant", "Delacroix", "Jacques Brel", "Veterans Colon.", "Scheut", "Obus", "Prince De Liege", "Paulsen", "Mehdi Bouda", "Peterbos", "Fruits", "Westland Shopping"],
+    "92":["Fort-Jaco", "Alphonse Xiii", "Place Saint-Job", "Gare De Saint-Job", "Lancaster", "Thevenet", "Dieweg", "Wolvendael", "Marlow", "Heros", "Boetendael", "Messidor", "Vanderkindere", "Moliere", "Darwin", "Ma Campagne", "Janson", "Faider", "Stephanie", "Louise", "Poelaert", "Petit Sablon", "Royale", "Palais", "Parc", "Congres", "Botanique", "Gillon", "Sainte-Marie", "Robiano", "Eglise St-Servais", "Pogge", "Eenens", "Verboekhoven", "Princesse Elisabeth", "Schaerbeek Gare"],
+    "93":["Legrand", "Abbaye", "Vleurgat", "Bailli", "Defacqz", "Stephanie", "Louise", "Poelaert", "Petit Sablon", "Royale", "Palais", "Parc", "Congres", "Botanique", "Gillon", "Sainte-Marie", "Lefrancq", "Liedts", "Masui", "Marie-Christine", "Princ. Clementine", "Moorslede", "Bockstael", "Jacobs Fontaine", "Foyer Jettois", "Cim. De Jette", "Guill. De Greef", "Hopital Brugmann", "Polycl. Brugmann", "Stienon", "Stade"],
+    "95":["Wiener", "Miraval", "Les 3 Tilleuls", "Calypso 2000", "Vander Elst", "Keym", "Arcades", "Relais", "Cimetière d'Ixelles", "Thys", "Etterbeek Gare", "Delporte", "Rodin", "Germoir", "Blyckaerts", "Idalie", "Luxembourg", "Science", "Trône", "Royale", "Grand Sablon", "Grand-Place"],
+    "96":["Trinité", "Ma Campagne", "Moris", "Barriere", "Combaz", "Rochefort", "Berthelot", "Wiels", "Charroi", "Ile Sainte-Helene"]
+  },
+  bus: {
+    "12":["Gare du Nord","Rogier","Madou","Arts-Loi","Trone","Porte de Namur","Flagey","Boondael"],
+    "17":["Gare du Midi","Lemonnier","Bourse","De Brouckère","Rogier","Gare du Nord"],
+    "20":["Gare du Nord","Laeken","Bockstael","Ossegem","Heysel"],
+    "21":["Gare du Nord","Botanique","Madou","Arts-Loi","Schuman","Montgomery"],
+    "27":["Gare du Midi","Anneessens","Bourse","De Brouckère","Rogier","Gare du Nord","Bordet"],
+    "29":["Delta","Boondael","Flagey","Porte de Namur","Trone","Arts-Loi","Schuman"],
+    "34":["Gare du Midi","Lemonnier","Bourse","De Brouckère","Gare du Nord","Pannenhuis"],
+    "36":["Gare du Nord","Ossegem","Laeken","Bockstael","Pannenhuis"],
+    "38":["Gare du Midi","Barrière","Parvis de Saint-Gilles","Louise","Porte de Namur","Trone","Arts-Loi"],
+    "41":["Gare du Nord","Botanique","Rogier","Gare du Midi"],
+    "45":["Gare du Midi","Albert","Stalle","Uccle"],
+    "46":["Gare du Midi","Lemonnier","Bourse","De Brouckère","Rogier"],
+    "47":["Gare du Midi","Anneessens","Lemonnier","Bourse"],
+    "48":["Gare du Midi","Barrière","Louise","Flagey","Boondael"],
+    "49":["Gare du Midi","Albert","Erasme","Anderlecht"],
+    "50":["Gare du Nord","Bockstael","Laeken","Ossegem","Heysel"],
+    "54":["Montgomery","Mérode","Delta","Boondael","Flagey"],
+    "57":["Gare du Midi","Lemonnier","Anneessens","Bourse","De Brouckère"],
+    "58":["Gare du Nord","Pannenhuis","Laeken","Bockstael"],
+    "59":["Gare du Midi","Barrière","Parvis de Saint-Gilles","Lemonnier"],
+    "60":["Gare du Nord","Rogier","Botanique","Madou"],
+    "61":["Gare du Nord","Ossegem","Atomium","Heysel"],
+    "63":["Gare du Midi","Albert","Uccle","Stalle"],
+    "64":["Gare du Midi","Erasme","Anderlecht","Beekkant"],
+    "65":["Gare du Midi","Lemonnier","Bourse","De Brouckère","Rogier","Gare du Nord"],
+    "66":["Gare du Midi","Albert","Forest","Uccle"],
+    "69":["Montgomery","Schuman","Arts-Loi","Trone","Louise"],
+    "71":["Gare du Nord","De Brouckère","Bourse","Lemonnier","Gare du Midi","Albert","Stalle"],
+    "72":["Flagey","Boondael","Delta","Mérode","Montgomery"],
+    "74":["Gare du Midi","Lemonnier","Anneessens","Bourse","De Brouckère","Rogier"],
+    "75":["Gare du Midi","Barrière","Louise","Porte de Namur","Flagey"],
+    "76":["Gare du Nord","Pannenhuis","Bockstael","Laeken"],
+    "78":["Gare du Midi","Erasme","Anderlecht","Beekkant","Simonis"],
+    "79":["Montgomery","Meiser","Diamant","Linthout","Josaphat"],
+    "80":["Gare du Nord","Botanique","Madou","Arts-Loi","Schuman","Montgomery"],
+    "83":["Gare du Midi","Albert","Forest","Marius Renard"],
+    "84":["Gare du Midi","Lemonnier","Bourse","De Brouckère"],
+    "86":["Gare du Nord","Pannenhuis","Laeken","Bockstael","Ossegem"],
+    "87":["Montgomery","Schuman","Arts-Loi","Trone","Louise","Bailli"],
+    "88":["Gare du Midi","Albert","Uccle","Stalle"],
+    "89":["Gare du Nord","Rogier","Botanique","Madou","Arts-Loi"],
+    "95":["Trone","Porte de Namur","Louise","Bailli","Flagey","Boondael","Delta","Mérode","Montgomery","Gare du Nord"]
+  }
+};
+
+let curType='metro', curFilter='all', curInsp='1', allAlerts=[];
+let votedIds=JSON.parse(localStorage.getItem('v')||'[]');
+let stillIds=JSON.parse(localStorage.getItem('s')||'[]');
+
+// DARK MODE
+function toggleDark(){
+  const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'':'dark');
+  document.getElementById('dbtn').textContent=d?'🌙':'☀️';
+  localStorage.setItem('t',d?'l':'d');
+}
+if(localStorage.getItem('t')==='d'){
+  document.documentElement.setAttribute('data-theme','dark');
+  document.getElementById('dbtn').textContent='☀️';
+}
+
+// INSTALL BANNER
+if(!localStorage.getItem('install-dismissed')){
+  document.getElementById('install-banner').style.display='block';
+}
+function closeInstall(){
+  document.getElementById('install-banner').style.display='none';
+  localStorage.setItem('install-dismissed','1');
+}
+
+async function init(){
+  updateLineSelect();
+  await trackVisit();
+  await loadAlerts();
+  setInterval(loadAlerts,30000);
+  db.channel('ac').on('postgres_changes',{event:'*',schema:'public',table:'alerts'},()=>loadAlerts()).subscribe();
+}
+
+async function trackVisit(){
+  try{
+    await db.from('visits').insert([{}]);
+    const sod=new Date();sod.setHours(0,0,0,0);
+    const{count:today}=await db.from('visits').select('*',{count:'exact',head:true}).gte('created_at',sod.toISOString());
+    const{count:total}=await db.from('visits').select('*',{count:'exact',head:true});
+    document.getElementById('s-visits').textContent=today||0;
+    document.getElementById('s-total-visits').textContent=total||0;
+  }catch(e){}
+}
+
+function updateLineSelect(){
+  const s=document.getElementById('sel-line');
+  s.innerHTML='<option value="">Choisir une ligne...</option>'+
+    Object.keys(STOPS[curType]).map(l=>`<option value="${l}">Ligne ${l}</option>`).join('');
+  document.getElementById('sel-station').innerHTML='<option value="">D\'abord choisir une ligne...</option>';
+  document.getElementById('sel-dir').innerHTML='<option value="">D\'abord choisir une ligne...</option>';
+}
+
+function updateStops(){
+  const line=document.getElementById('sel-line').value;
+  const ss=document.getElementById('sel-station');
+  const ds=document.getElementById('sel-dir');
+  if(!line){
+    ss.innerHTML='<option value="">D\'abord choisir une ligne...</option>';
+    ds.innerHTML='<option value="">D\'abord choisir une ligne...</option>';
+    return;
+  }
+  const stops=STOPS[curType][line]||[];
+  ss.innerHTML='<option value="">Choisir une station...</option>'+stops.map(s=>`<option value="${s}">${s}</option>`).join('');
+  const f=stops[0], l=stops[stops.length-1];
+  ds.innerHTML=`<option value="">Choisir une direction...</option><option value="vers ${l}">→ vers ${l}</option><option value="vers ${f}">→ vers ${f}</option>`;
+}
+
+function setType(t,el){
+  curType=t;
+  document.querySelectorAll('.ttab').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  updateLineSelect();
+}
+
+function setInsp(v,el){
+  curInsp=v;
+  document.querySelectorAll('.iopt').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function setFilter(f,el){
+  curFilter=f;
+  document.querySelectorAll('.ftab').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  renderAlerts();
+}
+
+async function loadAlerts(){
+  try{
+    const ago=new Date(Date.now()-2*60*60*1000).toISOString();
+    const{data,error}=await db.from('alerts').select('*').gte('created_at',ago).order('created_at',{ascending:false});
+    if(error)throw error;
+    allAlerts=data||[];
+    renderAlerts();
+    updateStats();
+  }catch(e){
+    document.getElementById('alist').innerHTML=`<div class="empty"><div class="ei">⚙️</div><h3>Erreur de connexion</h3><p>Réessaie dans quelques secondes.</p></div>`;
+  }
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function ago(ts){
+  const d=new Date(ts);
+  const h=d.toLocaleString('fr-BE',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'});
+  return`Signalé à ${h}`;
+}
+
+function renderAlerts(){
+  const list=document.getElementById('alist');
+  const now=Date.now(), TWO=2*60*60*1000;
+  const filtered=allAlerts.filter(a=>{
+    if(now-new Date(a.created_at).getTime()>TWO)return false;
+    if(curFilter!=='all'&&a.type!==curFilter)return false;
+    return true;
+  });
+  document.getElementById('list-title').textContent=filtered.length>0
+    ?`${filtered.length} contrôle${filtered.length>1?'s':''} signalé${filtered.length>1?'s':''}`
+    :'Contrôles signalés';
+  if(!filtered.length){
+    list.innerHTML=`<div class="empty"><div class="ei">✅</div><h3>Aucun contrôle signalé</h3><p>Pas d'alerte active en ce moment.<br>Vous en voyez un ? Signalez-le !</p></div>`;
+    return;
+  }
+  const icons={metro:'🚇',tram:'🚋',bus:'🚌'};
+  const labels={metro:'Métro',tram:'Tram',bus:'Bus'};
+  list.innerHTML=filtered.map(a=>{
+    const age=now-new Date(a.created_at).getTime();
+    const pct=Math.max(0,100-(age/TWO)*100);
+    const bc=pct>60?'':pct>30?'warn':'danger';
+    const voted=votedIds.includes(a.id);
+    const still=stillIds.includes(a.id);
+    const verified=(a.confirmations||0)>=3;
+    const typeIcon=icons[a.type]||'🚨';
+    const typeLabel=labels[a.type]||a.type;
+    const txt=`⚠️ Contrôle STIB !\n${typeIcon} ${typeLabel} ligne ${a.line}\n📍 ${a.station}${a.direction?'\n➡️ '+a.direction:''}${a.inspectors?'\n👮 '+a.inspectors+' inspecteur(s)':''}\n⏱️ ${ago(a.created_at)}\n\nhttps://yoyoyo905.github.io/control-steub/`;
+    const enc=encodeURIComponent(txt);
+    return`<div class="acard ${a.type}${verified?' verified':''}">
+      <div class="atop">
+        <div class="lbadge ${a.type}">${esc(a.line)}</div>
+        <div class="acontent">
+          <div class="arow">
+            <div class="atype">${typeIcon} ${typeLabel}</div>
+            ${verified?'<span class="vbadge">✅ Vérifié</span>':''}
+          </div>
+          <div class="astation">${esc(a.station)}</div>
+          ${a.direction?`<div class="adir">➡️ ${esc(a.direction)}</div>`:''}
+          ${a.inspectors?`<div class="ainsp">👮 ${esc(a.inspectors)} inspecteur${a.inspectors!=='1'?'s':''}</div>`:''}
+        </div>
+      </div>
+      <div class="abot">
+        <div class="atime">🕐 ${ago(a.created_at)}</div>
+        <div class="ebar-wrap"><div class="ebar ${bc}" style="width:${pct.toFixed(1)}%"></div></div>
+        <button class="abtn${voted?' voted':''}" onclick="vote('${a.id}',${a.votes||0},${voted})" title="Je confirme ce contrôle">👍 ${a.votes||0}</button>
+        <button class="abtn${still?' voted':''}" onclick="confirm_('${a.id}',${a.confirmations||0},${still})" title="Je vois encore ce contrôle maintenant (3 confirmations = Vérifié ✅)">👀 ${a.confirmations||0}</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">👍 je confirme &nbsp;·&nbsp; 👀 je vois encore (3× = ✅ vérifié)</div>
+      </div>
+      <div class="srow">
+        <a class="sbtn swapp" href="https://wa.me/?text=${enc}" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          WhatsApp
+        </a>
+        <a class="sbtn stele" href="https://t.me/share/url?url=https://yoyoyo905.github.io/control-steub/&text=${enc}" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          Telegram
+        </a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateStats(){
+  const now=Date.now(), TWO=2*60*60*1000;
+  const active=allAlerts.filter(a=>now-new Date(a.created_at).getTime()<TWO).length;
+  const sod=new Date();sod.setHours(0,0,0,0);
+  const today=allAlerts.filter(a=>new Date(a.created_at)>=sod).length;
+  document.getElementById('s-active').textContent=active;
+  document.getElementById('s-today').textContent=today;
+}
+
+async function vote(id,cur,done){
+  if(done)return;
+  const{error}=await db.from('alerts').update({votes:cur+1}).eq('id',id);
+  if(error){showToast('Erreur','err');return;}
+  votedIds.push(id);localStorage.setItem('v',JSON.stringify(votedIds));
+  await loadAlerts();showToast('👍 Merci !','ok');
+}
+
+async function confirm_(id,cur,done){
+  if(done)return;
+  const{error}=await db.from('alerts').update({confirmations:cur+1}).eq('id',id);
+  if(error){showToast('Erreur','err');return;}
+  stillIds.push(id);localStorage.setItem('s',JSON.stringify(stillIds));
+  await loadAlerts();showToast('👀 Confirmé !','ok');
+}
+
+async function submit(){
+  const line=document.getElementById('sel-line').value;
+  const station=document.getElementById('sel-station').value;
+  const dir=document.getElementById('sel-dir').value;
+  if(!line){showToast('Choisis une ligne !','err');return;}
+  if(!station){showToast('Choisis une station !','err');return;}
+  const btn=document.querySelector('.subbtn');
+  btn.disabled=true;btn.textContent='⏳ Envoi...';
+  try{
+    const{error}=await db.from('alerts').insert([{type:curType,line,station,direction:dir||null,inspectors:curInsp,votes:0,confirmations:0}]);
+    if(error)throw error;
+    closeModal();showToast('✅ Signalement envoyé ! Merci !','ok');
+    await loadAlerts();
+  }catch(e){showToast('Erreur lors de l\'envoi.','err');}
+  finally{btn.disabled=false;btn.textContent='✅ Confirmer le signalement';}
+}
+
+function openModal(){document.getElementById('modal').classList.add('open');document.body.style.overflow='hidden';}
+function closeModal(){
+  document.getElementById('modal').classList.remove('open');document.body.style.overflow='';
+  document.getElementById('sel-line').value='';
+  document.getElementById('sel-station').innerHTML='<option value="">D\'abord choisir une ligne...</option>';
+  document.getElementById('sel-dir').innerHTML='<option value="">D\'abord choisir une ligne...</option>';
+}
+function closeOut(e){if(e.target===document.getElementById('modal'))closeModal();}
+
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// SQL needed: ALTER TABLE alerts ADD COLUMN IF NOT EXISTS confirmations integer DEFAULT 0;
+init();
+</script>
+</body>
+</html>
