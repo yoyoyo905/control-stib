@@ -412,12 +412,11 @@ async function loadAlerts(){
 }
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function ago(ms){
-  const m=Math.floor(ms/60000);
-  if(m<1)return"À l'instant";
-  if(m<60)return`Il y a ${m} min`;
-  const h=Math.floor(m/60);
-  return`Il y a ${h}h${m%60>0?m%60+'min':''}`;
+function ago(ts){
+  const d=new Date(ts);
+  const h=d.getHours().toString().padStart(2,'0');
+  const m=d.getMinutes().toString().padStart(2,'0');
+  return`Signalé à ${h}:${m}`;
 }
 
 function renderAlerts(){
@@ -446,7 +445,7 @@ function renderAlerts(){
     const verified=(a.confirmations||0)>=3;
     const typeIcon=icons[a.type]||'🚨';
     const typeLabel=labels[a.type]||a.type;
-    const txt=`⚠️ Contrôle STIB !\n${typeIcon} ${typeLabel} ligne ${a.line}\n📍 ${a.station}${a.direction?'\n➡️ '+a.direction:''}${a.inspectors?'\n👮 '+a.inspectors+' inspecteur(s)':''}\n⏱️ Signalé ${ago(age).toLowerCase()}\n\nhttps://yoyoyo905.github.io/control-steub/`;
+    const txt=`⚠️ Contrôle STIB !\n${typeIcon} ${typeLabel} ligne ${a.line}\n📍 ${a.station}${a.direction?'\n➡️ '+a.direction:''}${a.inspectors?'\n👮 '+a.inspectors+' inspecteur(s)':''}\n⏱️ ${ago(a.created_at)}\n\nhttps://yoyoyo905.github.io/control-steub/`;
     const enc=encodeURIComponent(txt);
     return`<div class="acard ${a.type}${verified?' verified':''}">
       <div class="atop">
@@ -462,7 +461,7 @@ function renderAlerts(){
         </div>
       </div>
       <div class="abot">
-        <div class="atime">🕐 ${ago(age)}</div>
+        <div class="atime">🕐 ${ago(a.created_at)}</div>
         <div class="ebar-wrap"><div class="ebar ${bc}" style="width:${pct.toFixed(1)}%"></div></div>
         <button class="abtn${voted?' voted':''}" onclick="vote('${a.id}',${a.votes||0},${voted})" title="Je confirme ce contrôle">👍 ${a.votes||0}</button>
         <button class="abtn${still?' voted':''}" onclick="confirm_('${a.id}',${a.confirmations||0},${still})" title="Je vois encore ce contrôle maintenant (3 confirmations = Vérifié ✅)">👀 ${a.confirmations||0}</button>
